@@ -21,7 +21,9 @@ class Data:
             "size",
             "want",
             "problem_with",
-            "cant"
+            "cant",
+            "says",
+            "hello"
         ]
 
         self.relations_ = [
@@ -32,25 +34,70 @@ class Data:
         self.items = [
             "sender",
             "iphone",
+            "ipad",
+            "ipod",
+            "macbook",
             "screen",
             "receiver",
             "batery_change",
             "screen_change",
-            "7",
-            "6",
-            "6s",
-            "5s",
+            "iphone_7_plus",
+            "iphone_7",
+            "iphone_6",
+            "iphone_6s",
+            "iphone_6_plus",
+            "iphone_5",
+            "iphone_5s",
+            "ipad_3rdgen",
+            "ipod_touch",
             "apple_watch",
             "42mm",
             "sound",
-            "6plus",
             "service",
-            "turn_off",
+            "turn_on",
             "spare_info",
             "cost_info",
             "time_info",
             "charge_pin",
-            "charge"
+            "charge",
+            "hello",
+            "thanks",
+            "opening_hours_info",
+            "address_info",
+            "payment_info",
+            "unlock_service",
+            "finishing_info",
+            "wet",
+            "accesory_info",
+            "back_camera_change",
+            "ipad_2",
+            "ipod_null",
+            "iphone_4s",
+            "ipad_air",
+            "ipad_mini_2",
+            "wifi_issues",
+            "proximity_change",
+            "ipad_mini",
+            "ipod_nano",
+            "burned",
+            "iphone_5c",
+            "flash_issues",
+            "appointment_info",
+            "screen_protector",
+            "iphone_se",
+            "volume_issues",
+            "iphone_4",
+            "iphone_8",
+            "shell_change",
+            "fixing_issues",
+            "iphone_8_plus",
+            "ipad_air_2",
+            "ipad_4thgen",
+            "ipad_1stgen",
+            "charge_pin_change",
+            "warranty_info",
+            "home_button_change",
+            "iphone_6s_plus"
         ]
 
         self.items_ = [
@@ -148,9 +195,9 @@ class Data:
         return batches
 
     def run(self, with_batches=True):
-        with open("selected_data.json") as data_file:
+        with open("train_data.json") as data_file:
             selected_data = json.load(data_file)
-        selected_data = selected_data[:13]
+        # selected_data = selected_data[:13]
         selected_data_ = [
             [
                 "i have a ball",
@@ -179,10 +226,24 @@ class Data:
                 if question not in questions_all:
                     questions_all.append(question)
         self.questions_all = questions_all
+        missing_thing = False
+        for question in questions_all:
+            q_list = question.split(" ")
+            if q_list[0] not in self.items:
+                print("item", q_list[0])
+                missing_thing = True
+            if q_list[2] not in self.items:
+                print("item", q_list[2])
+                missing_thing = True
+            if q_list[1] not in self.relations:
+                print("relation", q_list[1])
+                missing_thing = True
+        if missing_thing:
+            sys.exit()
         #
         int_messages = []
         batch_length = 5
-        batch_count = 500
+        batch_count = 1000
         messages_x_y = []
         # np_size = (len(selected_data), (batch_count * batch_length) + len(questions_all))
         np_size_x = (len(selected_data), batch_count)

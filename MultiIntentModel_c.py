@@ -4,7 +4,7 @@ import tensorflow as tf
 from Data import Data
 
 rnn_size = 100
-batch_size = 2
+batch_size = 10
 word_length = 5
 max_sentence_length = 3
 lr = 0.02
@@ -37,7 +37,7 @@ with train_graph.as_default():
     final_state = tf.identity(final_state, name="final_state_char")
     #
     outputs_b = tf.transpose(outputs, [1, 0, 2])
-    last = tf.gather(outputs_b, 499)
+    last = tf.gather(outputs_b, 999)
     #
     # logits = tf.contrib.layers.fully_connected(last, rnn_size, activation_fn=None)
     logits = tf.contrib.layers.fully_connected(last, questions_count * 2, activation_fn=None)
@@ -54,22 +54,22 @@ with tf.Session(graph=train_graph) as sess:
     x = data_x
     y = data_y
     for n in range(100):
-        # for nn in range(len(x) - 1):
-        # print(x[nn])
-        # print(y[nn])
-        feed = {
-            input_text: x,
-            targets: y,
-            learning_rate: lr
-        }
-        # print(sess.run(prediction, feed))
-        # sys.exit()
-        train_loss, _ = sess.run([cost, train_op], feed)
-        print(train_loss.mean())
+        for nn in range(0, len(x) - 10, 10):
+            # print(x[nn])
+            # print(y[nn])
+            feed = {
+                input_text: x[nn:nn + 10],
+                targets: y[nn:nn + 10],
+                learning_rate: lr
+            }
+            # print(sess.run(prediction, feed))
+            # sys.exit()
+            train_loss, _ = sess.run([cost, train_op], feed)
+            print(train_loss.mean())
 
     while 1:
         text_input = input(">")
-        x = d.message_to_ints(text_input, 500)
+        x = d.message_to_ints(text_input, 1000)
         feed = {
             input_text: [x],
         }
