@@ -36,6 +36,7 @@ class Data:
             "receiver",
             "batery_change",
             "screen_change",
+            "7",
             "6",
             "6s",
             "5s",
@@ -43,11 +44,13 @@ class Data:
             "42mm",
             "sound",
             "6plus",
-            "estimate_cost",
             "service",
             "turn_off",
             "spare_info",
-            "cost_info"
+            "cost_info",
+            "time_info",
+            "charge_pin",
+            "charge"
         ]
 
         self.items_ = [
@@ -147,7 +150,7 @@ class Data:
     def run(self, with_batches=True):
         with open("selected_data.json") as data_file:
             selected_data = json.load(data_file)
-        selected_data = selected_data[:6]
+        selected_data = selected_data[:13]
         selected_data_ = [
             [
                 "i have a ball",

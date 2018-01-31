@@ -4,10 +4,10 @@ import tensorflow as tf
 from Data import Data
 
 rnn_size = 100
-batch_size = 1
+batch_size = 2
 word_length = 5
 max_sentence_length = 3
-lr = 0.002
+lr = 0.02
 
 d = Data()
 vocab_size = len(d.vocab) + 2
@@ -32,14 +32,15 @@ with train_graph.as_default():
     embedding = tf.Variable(tf.random_uniform((vocab_size, rnn_size), -1, 1))
     embed = tf.nn.embedding_lookup(embedding, input_text)
     lstm = tf.contrib.rnn.BasicLSTMCell(rnn_size, name="lstm")
-    outputs, final_state = tf.nn.dynamic_rnn(lstm, embed, dtype=tf.float32)
+    cell = tf.contrib.rnn.MultiRNNCell([lstm] * 2)
+    outputs, final_state = tf.nn.dynamic_rnn(cell, embed, dtype=tf.float32)
     final_state = tf.identity(final_state, name="final_state_char")
     #
     outputs_b = tf.transpose(outputs, [1, 0, 2])
     last = tf.gather(outputs_b, 499)
     #
-    logits = tf.contrib.layers.fully_connected(last, rnn_size, activation_fn=None)
-    logits = tf.contrib.layers.fully_connected(logits, questions_count * 2, activation_fn=None)
+    # logits = tf.contrib.layers.fully_connected(last, rnn_size, activation_fn=None)
+    logits = tf.contrib.layers.fully_connected(last, questions_count * 2, activation_fn=None)
     logits = tf.identity(logits, name="final_logits")
     logits_t = tf.reshape(logits, [-1, 2])
     prediction = tf.nn.softmax(logits_t)
@@ -52,7 +53,10 @@ with tf.Session(graph=train_graph) as sess:
     sess.run(tf.global_variables_initializer())
     x = data_x
     y = data_y
-    for n in range(500):
+    for n in range(100):
+        # for nn in range(len(x) - 1):
+        # print(x[nn])
+        # print(y[nn])
         feed = {
             input_text: x,
             targets: y,
