@@ -197,7 +197,7 @@ class Data:
     def run(self, with_batches=True):
         with open("train_data.json") as data_file:
             selected_data = json.load(data_file)
-        # selected_data = selected_data[:13]
+        # selected_data = selected_data[:5]
         selected_data_ = [
             [
                 "i have a ball",
@@ -220,6 +220,8 @@ class Data:
             ]
         ]
         #
+        for message in range(len(selected_data)):
+            selected_data[message][0] = " ".join(selected_data[message][1])
         questions_all = []
         for message in selected_data:
             for question in message[1]:
@@ -247,20 +249,22 @@ class Data:
         messages_x_y = []
         # np_size = (len(selected_data), (batch_count * batch_length) + len(questions_all))
         np_size_x = (len(selected_data), batch_count)
-        np_size_y = (len(selected_data), len(questions_all) * 2)
+        np_size_y = (len(selected_data), len(questions_all) * 1)
         data_np_x = np.zeros(np_size_x, dtype=np.int32)
         data_np_y = np.zeros(np_size_y, dtype=np.int32)
         for message in range(len(selected_data)):
+            print(selected_data[message][0])
             int_message = self.message_to_ints(selected_data[message][0], batch_count)
             # int_message_batch = self.message_to_batch(int_message, batch_length)
             for message_char in range(len(int_message)):
                 data_np_x[message][message_char] = int_message[message_char]
-            for question in range(0, len(questions_all * 2), 2):
+            for question in range(0, len(questions_all * 1), 1):
                 question_value_true = 0
                 question_value_false = 1
-                if questions_all[int(question * 0.5)] in selected_data[message][1]:
+                if questions_all[question] in selected_data[message][1]:
                     question_value_true = 1
                     question_value_false = 0
                 data_np_y[message][question] = question_value_true
-                data_np_y[message][question + 1] = question_value_false
+                print(questions_all[question], question_value_true)
+                # data_np_y[message][question + 1] = question_value_false
         return data_np_x, data_np_y
