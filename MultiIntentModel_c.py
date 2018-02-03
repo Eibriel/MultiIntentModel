@@ -8,10 +8,10 @@ rnn_size = 128
 # max_sentence_length = 60
 
 batch_sizes = [100, 50, 10, 3, 1]
-epochs = 300
-lr = 0.0002
+epochs = 100
+lr = 0.002
 
-d = Data(1)
+d = Data(0)
 vocab_size = len(d.vocab) + 2
 print(vocab_size)
 
@@ -43,28 +43,38 @@ with train_graph.as_default():
     logits = tf.identity(logits, name="final_logits")
     prediction = tf.nn.sigmoid(logits)
     cost = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.cast(targets, tf.float32), logits=logits)
-    train_op = tf.train.AdamOptimizer(learning_rate).minimize(cost)
+    tf.summary.scalar('cost', tf.reduce_mean(cost))
+    # train_op = tf.train.AdamOptimizer(learning_rate).minimize(cost)
+    optimizer = tf.train.AdamOptimizer(learning_rate)
+    # Gradient Clipping
+    gradients = optimizer.compute_gradients(cost)
+    capped_gradients = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in gradients]
+    train_op = optimizer.apply_gradients(capped_gradients)
 
 
 with tf.Session(graph=train_graph) as sess:
     sess.run(tf.global_variables_initializer())
-    for bk in range(len(data_x)):
-        x = data_x[bk]
-        y = data_y[bk]
-        # print("LEN", len(x))
-        for batch_size in batch_sizes:
-            if float(len(x)) / batch_size > 1.0:
-                break
-        for n in range(epochs):
-            for nn in range(0, len(x) - batch_size, batch_size):
-                feed = {
-                    input_text: x[nn:nn + batch_size],
-                    targets: y[nn:nn + batch_size],
-                    learning_rate: lr
-                }
-                pred, targ, train_loss, _ = sess.run([prediction, targets, cost, train_op], feed)
-                # print(x[0])
-                print("{} - {} - {}".format(batch_size, x[0].shape[0], train_loss.mean()))
+    merged = tf.summary.merge_all()
+    train_writer = tf.summary.FileWriter('train', sess.graph)
+    for n in range(2):
+        for bk in range(len(data_x)):
+            x = data_x[bk]
+            y = data_y[bk]
+            # print("LEN", len(x))
+            for batch_size in batch_sizes:
+                if float(len(x)) / batch_size > 1.0:
+                    break
+            for n in range(epochs):
+                for nn in range(0, len(x) - batch_size, batch_size):
+                    feed = {
+                        input_text: x[nn:nn + batch_size],
+                        targets: y[nn:nn + batch_size],
+                        learning_rate: lr
+                    }
+                    summary, pred, targ, train_loss, _ = sess.run([merged, prediction, targets, cost, train_op], feed)
+                    train_writer.add_summary(summary, 0)
+                    # print(x[0])
+                    print("{} - {} - {}".format(batch_size, x[0].shape[0], train_loss.mean()))
 
     while 1:
         text_input = input(">")
