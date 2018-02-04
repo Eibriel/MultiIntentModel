@@ -1,5 +1,6 @@
 import sys
 import json
+import random
 import numpy as np
 
 from simple_data import simple_data
@@ -102,6 +103,38 @@ class Data:
             ]
             with open("train_data.json") as data_file:
                 self.selected_data = json.load(data_file)
+            # Augmenting data
+            tmp_data = []
+            for data in self.selected_data:
+                tmp_data.append(data)
+                if random.random() > 0.8:
+                    tmp_data.append([data[0].lower(), data[1]])
+                    # print(tmp_data[-1][0])
+                elif random.random() > 0.8:
+                    tmp_data.append([data[0].upper(), data[1]])
+                    # print(tmp_data[-1][0])
+                elif random.random() > 0.8:
+                    temp_text = ""
+                    for char in data[0]:
+                        if random.random() > 0.7:
+                            char = char.upper()
+                        elif random.random() > 0.7:
+                            char = char.lower()
+                        temp_text = "{}{}".format(temp_text, char)
+                    tmp_data.append([temp_text, data[1]])
+                    # print(tmp_data[-1][0])
+                elif random.random() > 0.8:
+                    temp_text = ""
+                    for char in data[0]:
+                        if char == " " and random.random() > 0.91:
+                            continue
+                        if random.random() > 0.95:
+                            char = "{}{}".format(" ", char)
+                        temp_text = "{}{}".format(temp_text, char)
+                    tmp_data.append([temp_text, data[1]])
+                    # print(tmp_data[-1][0])
+            self.selected_data = tmp_data
+            # sys.exit()
             if 0:
                 masked_data = []
                 for data in self.selected_data:
@@ -252,6 +285,8 @@ class Data:
             for data_key in range(len(int_data)):
                 if int_data[data_key].shape[0] >= min_length and int_data[data_key].shape[0] < max_length:
                     masked_data.append(self.selected_data[data_key])
+                    if random.random() > 0.6:
+                        masked_data.append(["", []])
             np_size_x = (len(masked_data), max_length)
             np_size_y = (len(masked_data), len(questions_all))
             data_np_x = np.zeros(np_size_x, dtype=np.int32)
