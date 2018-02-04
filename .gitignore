@@ -1,6 +1,7 @@
 selected_data.json
 train_data.json
 train
+checkpoints
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

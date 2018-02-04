@@ -247,12 +247,15 @@ class Data:
         return batches
 
     def run(self):
+        # Collect all questions
         questions_all = []
         for message in self.selected_data:
             for question in message[1]:
                 if question not in questions_all:
                     questions_all.append(question)
         self.questions_all = questions_all
+        # Some item or relation is not in the lists?
+        # then exit.
         missing_thing = False
         for question in questions_all:
             q_list = question.split(" ")
@@ -267,26 +270,33 @@ class Data:
                 missing_thing = True
         if missing_thing:
             sys.exit()
-        #
+        # Convert messages to ints (Only to know the length)
         int_data = []
         for data in self.selected_data:
             int_message = self.message_to_ints(data[0])
             int_data.append(int_message)
+        # Separate data into buckets
         buckets_config = [50, 100, 300, 600, 1000]
         data_bk_x = []
         data_bk_y = []
+        batches_x = []
+        batches_y = []
         for bucket_key in range(len(buckets_config)):
+            # Get min and max message length for the bucket
             if bucket_key == 0:
                 min_length = 0
             else:
                 min_length = buckets_config[bucket_key - 1]
             max_length = buckets_config[bucket_key]
+            # Mask current data acording to min and max length
             masked_data = []
             for data_key in range(len(int_data)):
                 if int_data[data_key].shape[0] >= min_length and int_data[data_key].shape[0] < max_length:
                     masked_data.append(self.selected_data[data_key])
                     if random.random() > 0.6:
                         masked_data.append(["", []])
+            print("Buckets: ", buckets_config[bucket_key], len(masked_data))
+            # Create numpy arrays for X and Y
             np_size_x = (len(masked_data), max_length)
             np_size_y = (len(masked_data), len(questions_all))
             data_np_x = np.zeros(np_size_x, dtype=np.int32)
@@ -302,6 +312,22 @@ class Data:
                         question_value_true = 1
                         question_value_false = 0
                     data_np_y[message][question] = question_value_true
-            data_bk_x.append(data_np_x)
-            data_bk_y.append(data_np_y)
-        return data_bk_x, data_bk_y
+                data_bk_x.append(data_np_x)
+                data_bk_y.append(data_np_y)
+        # Generate mixed buckets data
+        batch_sizes = [100, 50, 10, 3, 1]
+        for bk in range(len(data_bk_x)):
+            x = data_bk_x[bk]
+            y = data_bk_y[bk]
+            for batch_size in batch_sizes:
+                if float(len(x)) / batch_size > 1.0:
+                    break
+            for nn in range(0, len(x) - batch_size, batch_size):
+                batches_x.append(x[nn:nn + batch_size])
+                batches_y.append(y[nn:nn + batch_size])
+            batches_x.append(x[-batch_size - 1:-1])
+            batches_y.append(y[-batch_size - 1:-1])
+        # print(len(data_bk_x))
+        print(len(batches_x))
+        # sys.exit()
+        return batches_x, batches_y

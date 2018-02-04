@@ -9,11 +9,13 @@ rnn_size = 128
 # max_sentence_length = 60
 
 batch_sizes = [100, 50, 10, 3, 1]
-epochs = 1
+epochs = 3
 lr = 0.002
+use_embed = True
+load_checkpoint = False
 
 d = Data(0)
-vocab_size = len(d.vocab) + 2
+vocab_size = len(d.vocab) + len(d.special.keys())
 print(vocab_size)
 
 data_x, data_y = d.run()
@@ -32,11 +34,14 @@ with train_graph.as_default():
 
     # Character RNN
     lstm = tf.contrib.rnn.BasicLSTMCell(rnn_size, name="lstm")
-    input_oh = tf.one_hot(input_text, vocab_size)
-    outputs, _ = tf.nn.dynamic_rnn(lstm, input_oh, dtype=tf.float32)
+    if use_embed:
+        embedding = tf.Variable(tf.random_uniform((vocab_size, rnn_size), -1, 1))
+        input_rnn = tf.nn.embedding_lookup(embedding, input_text)
+    else:
+        input_rnn = tf.one_hot(input_text, vocab_size)
+    outputs, _ = tf.nn.dynamic_rnn(lstm, input_rnn, dtype=tf.float32)
     #
     outputs_b = tf.transpose(outputs, [1, 0, 2])
-    # last = tf.gather(outputs_b, outputs_b[0])
     last = outputs_b[-1]
     #
     logits = tf.contrib.layers.fully_connected(last, rnn_size, activation_fn=None)
@@ -56,45 +61,26 @@ with train_graph.as_default():
 with tf.Session(graph=train_graph) as sess:
     sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver()
-    saver.restore(sess, tf.train.latest_checkpoint("./02"))
+    if load_checkpoint:
+        saver.restore(sess, tf.train.latest_checkpoint("./02"))
     merged = tf.summary.merge_all()
     train_writer = tf.summary.FileWriter('train', sess.graph)
     step = 0
-    shuffled_data = []
-    for bk in range(len(data_x)):
-        print(len(data_x[bk]))
-        shuffled_data.append([data_x[bk], data_y[bk]])
-    random.shuffle(shuffled_data)
-    for n in range(100):
-        # for bk in range(len(data_x)):
-        for bk in range(len(shuffled_data)):
-            # x = data_x[bk]
-            # y = data_y[bk]
-            random_index = random.randint(0, len(shuffled_data) - 1)
-            # x = shuffled_data[bk][0]
-            # y = shuffled_data[bk][1]
-            x = shuffled_data[random_index][0]
-            y = shuffled_data[random_index][1]
-
-            # print("LEN", len(x))
-            for batch_size in batch_sizes:
-                if float(len(x)) / batch_size > 1.0:
-                    break
-            for n in range(epochs):
-                random_nn = random.randint(0, len(x) - batch_size - 1)
-                # for nn in range(0, len(x) - batch_size, batch_size):
-                nn = random_nn
-                feed = {
-                    input_text: x[nn:nn + batch_size],
-                    targets: y[nn:nn + batch_size],
-                    learning_rate: lr
-                }
-                summary, pred, targ, train_loss, _ = sess.run([merged, prediction, targets, cost, train_op], feed)
-                step += 1
-                train_writer.add_summary(summary, step)
-                # print(x[0])
-                print("{} - {} - {}".format(batch_size, x[0].shape[0], train_loss.mean()))
-            saver.save(sess, "./my-model", global_step=step)
+    # Ordered sequence
+    sequence = list(range(len(data_x)))
+    for n in range(epochs):
+        for nn in sequence:
+            feed = {
+                input_text: data_x[nn],
+                targets: data_y[nn],
+                learning_rate: lr
+            }
+            summary, pred, targ, train_loss, _ = sess.run([merged, prediction, targets, cost, train_op], feed)
+            step += 1
+            train_writer.add_summary(summary, step)
+            print("{} - {} - {}".format(data_x[nn].shape[0], data_x[nn].shape[1], train_loss.mean()))
+        random.shuffle(sequence)
+    saver.save(sess, "./checkpoints/my-model", global_step=step)
 
     while 1:
         text_input = input(">")
