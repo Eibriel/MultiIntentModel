@@ -20,6 +20,7 @@ class Data:
             "start": 2,
             "end": 3
         }
+        self.vocab = characters.split(" ") + signs.split(" ") + accents.split(" ") + [space] + [uppermark]
         if data_source == 0:
             self.relations = [
                 "have",
@@ -36,6 +37,7 @@ class Data:
             self.items = [
                 "sender",
                 "iphone",
+                "fake",
                 "ipad",
                 "ipod",
                 "macbook",
@@ -43,6 +45,7 @@ class Data:
                 "receiver",
                 "batery_change",
                 "screen_change",
+                "speaker_change",
                 "iphone_7_plus",
                 "iphone_7",
                 "iphone_6",
@@ -102,18 +105,36 @@ class Data:
                 "iphone_6s_plus"
             ]
             with open("train_data.json") as data_file:
-                self.selected_data = json.load(data_file)
+                all_data = json.load(data_file)
+            # Collect all questions
+            self.questions_count = {}
+            for message in all_data:
+                for question in message[1]:
+                    if question not in self.questions_count:
+                        self.questions_count[question] = 0
+                    else:
+                        self.questions_count[question] += 1
+            self.questions_all = []
+            for message in all_data:
+                for question in message[1]:
+                    if self.questions_count[question] < 500:
+                        continue
+                    if question not in self.questions_all:
+                        self.questions_all.append(question)
+            # Spliting data into Training and Dev
+            self.selected_data = all_data[:-100]
+            self.dev_data = all_data[-100:]
             # Augmenting data
             tmp_data = []
             for data in self.selected_data:
                 tmp_data.append(data)
-                if random.random() > 0.8:
+                if random.random() > 0.9:
                     tmp_data.append([data[0].lower(), data[1]])
                     # print(tmp_data[-1][0])
-                elif random.random() > 0.8:
+                if random.random() > 0.9:
                     tmp_data.append([data[0].upper(), data[1]])
                     # print(tmp_data[-1][0])
-                elif random.random() > 0.8:
+                if random.random() > 0.9:
                     temp_text = ""
                     for char in data[0]:
                         if random.random() > 0.7:
@@ -123,7 +144,7 @@ class Data:
                         temp_text = "{}{}".format(temp_text, char)
                     tmp_data.append([temp_text, data[1]])
                     # print(tmp_data[-1][0])
-                elif random.random() > 0.8:
+                if random.random() > 0.9:
                     temp_text = ""
                     for char in data[0]:
                         if char == " " and random.random() > 0.91:
@@ -133,14 +154,12 @@ class Data:
                         temp_text = "{}{}".format(temp_text, char)
                     tmp_data.append([temp_text, data[1]])
                     # print(tmp_data[-1][0])
+                if random.random() > 0.9:
+                    temp_text = ""
+                    for n_char in range(random.randint(0, 700)):
+                        temp_text = "{}{}".format(temp_text, random.choice(self.vocab))
+                    tmp_data.append([temp_text, []])
             self.selected_data = tmp_data
-            # sys.exit()
-            if 0:
-                masked_data = []
-                for data in self.selected_data:
-                    if len(data[0]) < 50:
-                        masked_data.append(data)
-                self.selected_data = masked_data
         elif data_source == 1:
             self.relations = [
                 "have",
@@ -152,7 +171,7 @@ class Data:
                 "water"
             ]
             self.selected_data = simple_data
-        self.vocab = characters.split(" ") + signs.split(" ") + accents.split(" ") + [space] + [uppermark]
+
 
     def message_to_ints(self, text, max_sentence_length=None):
         text = text.replace("Á", "´^a")
@@ -246,18 +265,11 @@ class Data:
             batches.append(message[start + n:end + n])
         return batches
 
-    def run(self):
-        # Collect all questions
-        questions_all = []
-        for message in self.selected_data:
-            for question in message[1]:
-                if question not in questions_all:
-                    questions_all.append(question)
-        self.questions_all = questions_all
+    def prepare_data(self, data_to_prepare):
         # Some item or relation is not in the lists?
         # then exit.
         missing_thing = False
-        for question in questions_all:
+        for question in self.questions_all:
             q_list = question.split(" ")
             if q_list[0] not in self.items:
                 print("item", q_list[0])
@@ -272,7 +284,7 @@ class Data:
             sys.exit()
         # Convert messages to ints (Only to know the length)
         int_data = []
-        for data in self.selected_data:
+        for data in data_to_prepare:
             int_message = self.message_to_ints(data[0])
             int_data.append(int_message)
         # Separate data into buckets
@@ -292,23 +304,23 @@ class Data:
             masked_data = []
             for data_key in range(len(int_data)):
                 if int_data[data_key].shape[0] >= min_length and int_data[data_key].shape[0] < max_length:
-                    masked_data.append(self.selected_data[data_key])
+                    masked_data.append(data_to_prepare[data_key])
                     if random.random() > 0.6:
                         masked_data.append(["", []])
             print("Buckets: ", buckets_config[bucket_key], len(masked_data))
             # Create numpy arrays for X and Y
             np_size_x = (len(masked_data), max_length)
-            np_size_y = (len(masked_data), len(questions_all))
+            np_size_y = (len(masked_data), len(self.questions_all))
             data_np_x = np.zeros(np_size_x, dtype=np.int32)
             data_np_y = np.zeros(np_size_y, dtype=np.int32)
             for message in range(len(masked_data)):
                 int_message = self.message_to_ints(masked_data[message][0], max_length)
                 for message_char in range(len(int_message)):
                     data_np_x[message][message_char] = int_message[message_char]
-                for question in range(0, len(questions_all), 1):
+                for question in range(0, len(self.questions_all), 1):
                     question_value_true = 0
                     question_value_false = 1
-                    if questions_all[question] in masked_data[message][1]:
+                    if self.questions_all[question] in masked_data[message][1]:
                         question_value_true = 1
                         question_value_false = 0
                     data_np_y[message][question] = question_value_true
@@ -327,7 +339,11 @@ class Data:
                 batches_y.append(y[nn:nn + batch_size])
             batches_x.append(x[-batch_size - 1:-1])
             batches_y.append(y[-batch_size - 1:-1])
-        # print(len(data_bk_x))
-        print(len(batches_x))
-        # sys.exit()
+        # Dev data
+
         return batches_x, batches_y
+
+    def run(self):
+        batches_x, batches_y = self.prepare_data(self.selected_data)
+        batches_dev_x, batches_dev_y = self.prepare_data(self.dev_data)
+        return batches_x, batches_y, batches_dev_x, batches_dev_y
